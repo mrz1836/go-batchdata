@@ -154,6 +154,12 @@ func TestDoStalledBodyOverTheWire(t *testing.T) {
 					_ = http.NewResponseController(w).Flush()
 					select {
 					case <-r.Context().Done():
+						// The client gave up. Abort rather than return: a
+						// returning handler ends the body, and over HTTP/1.1
+						// that final chunk can reach the client between its
+						// TLS close_notify and the socket closing, where it
+						// reads as a complete body.
+						panic(http.ErrAbortHandler)
 					case <-release:
 					}
 				})

@@ -416,6 +416,11 @@ func TestTraceTimeouts(t *testing.T) {
 	block := func(_ http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
+			// The client gave up. Abort rather than return: a returning
+			// handler sends a response, and over HTTP/1.1 it can reach the
+			// client between its TLS close_notify and the socket closing,
+			// where the transport uses it instead of the timeout.
+			panic(http.ErrAbortHandler)
 		case <-time.After(5 * time.Second):
 		}
 	}
