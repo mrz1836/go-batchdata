@@ -21,7 +21,7 @@ A comprehensive list of built-in features that ship with this repository.
 * **Polished Community Experience** using rich templates for Issues & PRs.
 * **All the Right Meta Files** (`LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SUPPORT.md`, `SECURITY.md`) pre‑filled and ready.
 * **Code Ownership** clarified through a [CODEOWNERS](../CODEOWNERS) file, keeping reviews fast and focused.
-* **Zero‑Noise Dev Environments** with tuned editor settings ([`.editorconfig`](../../.editorconfig)) plus curated *ignore* files for [VS Code](../../.editorconfig) and [Git](../../.gitignore).
+* **Zero‑Noise Dev Environments** with tuned editor settings ([`.editorconfig`](../../.editorconfig)) plus curated *ignore* files for [VS Code](../../.editorconfig), [Docker](../../.dockerignore), and [Git](../../.gitignore).
 * **Label Sync Magic**: your repo labels stay in lock‑step with [.github/labels.yml](../labels.yml).
 * **Friendly First PR Workflow** – newcomers get a warm welcome thanks to a dedicated [workflow](../workflows/pull-request-management.yml).
 * **Standards‑Compliant Docs** adhering to the [standard‑readme](https://github.com/RichardLitt/standard-readme/blob/master/spec.md) spec.
