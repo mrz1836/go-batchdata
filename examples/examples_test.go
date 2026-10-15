@@ -25,6 +25,15 @@ counts: {"requestCount":2,"matchCount":1,"noMatchCount":1,"errorCount":0}
 `, out.String())
 }
 
+func TestRunDescribesAFailedCall(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	var out bytes.Buffer
+	err := run(ctx, &out)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, "stopped; the call may already have been processed and billed\n", out.String())
+}
+
 func TestDescribe(t *testing.T) {
 	// Trace fails with a context that is already done before making a request.
 	client, err := batchdata.NewClient("EXAMPLE-KEY-0000")
