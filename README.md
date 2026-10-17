@@ -19,7 +19,7 @@
     </td>
     <td align="left">
        <a href="https://github.com/mrz1836/go-batchdata/actions"><img src="https://img.shields.io/github/actions/workflow/status/mrz1836/go-batchdata/fortress.yml?branch=master&label=build&logo=github&style=flat-square" alt="Build"></a>
-       <a href="https://github.com/mrz1836/go-batchdata/actions"><img src="https://img.shields.io/github/last-commit/mrz1836/go-batchdata?style=flat-square&logo=git&logoColor=white&label=last%20update" alt="Last Commit"></a>
+       <a href="https://github.com/mrz1836/go-batchdata/actions"><img src="https://img.shields.io/github/last-commit/mrz1836/go-batchdata.svg?style=flat-square&logo=git&logoColor=white&label=last%20update" alt="Last Commit"></a>
     </td>
     <td align="right">
        &nbsp;&nbsp;&nbsp;&nbsp; <code>Quality</code> &nbsp;&nbsp;
