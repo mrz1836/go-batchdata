@@ -34,3 +34,16 @@ func ExampleNewClient_invalidOption() {
 	// true
 	// batchdata: invalid configuration: WithTimeout: must be positive
 }
+
+// A kept response body decodes with the checks a call applies, without a
+// call. A rejection inside an HTTP 200 body is still an error, never a
+// result.
+func ExampleDecodeResponse() {
+	stored := []byte(`{"status":{"code":429,"message":"Too many requests"}}`)
+	err := batchdata.DecodeResponse(stored, func([]byte, []batchdata.Warning) error { return nil })
+	fmt.Println(errors.Is(err, batchdata.ErrRateLimited))
+	fmt.Println(err)
+	// Output:
+	// true
+	// batchdata: rejected (HTTP 200, provider status 429)
+}

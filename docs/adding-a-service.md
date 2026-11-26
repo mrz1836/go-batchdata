@@ -7,7 +7,8 @@ verification. The `skiptrace` package is the reference implementation: when in d
 
 - **Small root** (`package batchdata`): the `Client` (immutable, functional options), the public error
   surface (`Error`, `Kind`, `ValidationError`, the sentinels, `Warning`) and the one place that turns an
-  HTTP exchange into those errors. It exports no generic `Do` or `Post`.
+  HTTP exchange into those errors, or, through `DecodeResponse`, a kept HTTP 200 body. It exports no
+  generic `Do` or `Post`.
 - **One package per service** (`skiptrace`, ...). Each imports only the root, `internal/call`,
   `internal/jsonx` and the standard library. A service never imports another service. Types live in
   the service package, so `skiptrace.Address` and a future `property.Address` never collide.
@@ -33,7 +34,7 @@ The root does not change when a service is added.
   request.go    request types and their JSON tags
   validate.go   Request.Validate: local checks, first problem only
   result.go     result types and their JSON tags
-  decode.go     strict decoding of the result object
+  decode.go     strict decoding of the result object, and Decode for a kept body
   *_test.go     validation tables, golden request JSON, decoding fixtures, association,
                 end-to-end tests over internal/testutil servers, fuzz targets, benchmarks
 ```
@@ -64,12 +65,16 @@ The root does not change when a service is added.
 6. **Decode.** `Decode` receives the envelope's `result` object, already checked to be an object, and
    the envelope's warnings. Be strict on the result's own shape (return any error, and the root reports
    `ErrMalformedResponse`), and decode each element of a data array on its own, so that one bad element
-   becomes an undecodable entry instead of failing a billed call.
+   becomes an undecodable entry instead of failing a billed call. Export `Decode(body, …)`, which passes
+   `batchdata.DecodeResponse` the same callback the call method passes `send`, built by one function, so
+   that a kept body decodes exactly as the call decoded it. Take only what the callback needs besides the
+   body (for `skiptrace`, the items' request IDs, carried by the request), and never validate it.
 7. **Tests.** Cover the wire request byte for byte, every zero-call path with an exact attempt count,
    validation tables, decoding fixtures with nulls, absent fields, unknown enums and oversized arrays,
-   a JSON round trip of the result, the HTTP status table end to end, and fuzz targets for validation
-   and decoding. Fixtures are synthetic: `555-01xx` numbers, `example.com` addresses, invented streets
-   with ZIP `00000`.
+   a JSON round trip of the result, the HTTP status table end to end, fuzz targets for validation and
+   decoding, a test that every fixture served by a local server and decoded with `Decode` gives equal
+   results, and a fuzz target that compares the two. Fixtures are synthetic: `555-01xx` numbers,
+   `example.com` addresses, invented streets with ZIP `00000`.
 8. **Wire up.** Add the package to the README's package table and to `examples/`.
 
 ## Invariants a service must keep
