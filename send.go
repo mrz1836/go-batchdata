@@ -90,6 +90,36 @@ type wireStatus struct {
 	Warnings []Warning `json:"warnings"`
 }
 
+// DecodeResponse decodes body, the bytes of an HTTP 200 response from the V3
+// API that the caller kept, exactly as a call decodes the response it reads:
+// it checks the envelope, then passes the result object and the warnings
+// (status.warnings, then the top-level warnings) to decode, which supplies the
+// typed decoding. It makes no call and needs no Client.
+//
+// It returns nil once decode succeeds, or the *Error a call returns for the
+// same bytes, with StatusCode 200: KindRejected, with the ProviderCode,
+// ProviderMessage and Warnings, when the body reports a status code other than
+// 200; KindResponseTooLarge for a body over MaxResponseBytesLimit, the most
+// any call reads; and KindMalformedResponse for any other shape, for a body
+// over the JSON bounds, or when decode fails or is nil. One thing differs from
+// a call: a rejection carries no Retry-After hint, which was a response
+// header, not part of the body.
+//
+// body must be the whole body of an HTTP 200 response, as the call read it; a
+// call that received any other status never decoded its body. DecodeResponse
+// never modifies body. A service package's own decoder, such as
+// skiptrace.Decode, is the typed form to use.
+func DecodeResponse(body []byte, decode func(result []byte, warnings []Warning) error) error {
+	if len(body) > MaxResponseBytesLimit {
+		e := newError(KindResponseTooLarge, nil, "", nil)
+		e.StatusCode = http.StatusOK
+		return e
+	}
+	// A stored body has no header, so there is no Retry-After hint to read
+	// and no clock to read it against.
+	return decodeEnvelope(httpx.Response{Body: body}, decode, time.Time{})
+}
+
 // decodeEnvelope checks a 200 body strictly and hands its result object and
 // warnings to decode. The body must be valid UTF-8 and exactly one JSON object;
 // status, when present and not null, must be an object; a status code other

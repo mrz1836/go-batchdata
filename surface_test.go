@@ -34,3 +34,7 @@ func TestZeroClientPrints(t *testing.T) {
 	assert.Equal(t, "batchdata.Client{}", c.String())
 	assert.Equal(t, "batchdata.Client{}", c.GoString())
 }
+
+func TestDecodeResponseKeepsItsSignature(t *testing.T) {
+	assert.IsType(t, (func([]byte, func([]byte, []batchdata.Warning) error) error)(nil), batchdata.DecodeResponse)
+}
