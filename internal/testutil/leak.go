@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // FormatVerbs returns the fmt verbs a caller might apply to a value. Most of
@@ -53,10 +54,27 @@ func Shapes[T any](p *T) []Shape {
 	}
 }
 
+// addressChars are the characters fmt prints for a pointer or a func: its
+// address in binary, octal, decimal or either case of hex, with or without 0x.
+const addressChars = "0123456789abcdefABCDEFx"
+
 // AssertRedacted fails tb when out contains any secret, in plain text or as
 // hex in either case. msgAndArgs annotate a failure.
+//
+// fmt prints pointers and funcs as addresses that change from run to run, so
+// a secret made only of characters an address can hold, such as the port
+// "8443", could match one by chance. Such a secret, or an empty one, stops
+// the test before anything is searched; plant ":8443" instead.
 func AssertRedacted(tb testing.TB, out string, secrets []string, msgAndArgs ...any) bool {
 	tb.Helper()
+	for _, s := range secrets {
+		if strings.TrimLeft(s, addressChars) == "" {
+			require.Failf(tb, "secret could match a printed address",
+				"secret %q is made only of characters a printed address can hold, so it could match one by chance; "+
+					"plant it with a character an address never prints, as in \":8443\"", s)
+			return false
+		}
+	}
 	ok := true
 	for _, s := range secrets {
 		h := hex.EncodeToString([]byte(s))

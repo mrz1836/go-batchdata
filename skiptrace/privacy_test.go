@@ -126,7 +126,7 @@ func TestErrorsNeverRevealSecrets(t *testing.T) {
 			_, err = skiptrace.New(c).Trace(t.Context(), privateRequest())
 			e := testutil.RequireErrorAs[*batchdata.Error](t, err)
 			assert.Equal(t, tt.kind, e.Kind)
-			assertErrorRedacted(t, err, "127.0.0.1", "8443")
+			assertErrorRedacted(t, err, "127.0.0.1", ":8443")
 		})
 	}
 }
@@ -146,7 +146,7 @@ func TestTransportErrorsNeverRevealSecrets(t *testing.T) {
 	require.NoError(t, err)
 	_, err = skiptrace.New(c).Trace(t.Context(), privateRequest())
 	assert.Equal(t, batchdata.KindTransport, testutil.RequireErrorAs[*batchdata.Error](t, err).Kind)
-	assertErrorRedacted(t, err, "192.0.2.10", "127.0.0.1", "3128")
+	assertErrorRedacted(t, err, "192.0.2.10", "127.0.0.1", ":3128")
 }
 
 func TestProxyCredentialsNeverRevealed(t *testing.T) {
@@ -191,7 +191,7 @@ func TestClientNeverRevealsSecrets(t *testing.T) {
 		batchdata.WithTestEndpoint("https://127.0.0.1:8443"),
 		batchdata.WithUserAgent("example-app/1.0"))
 	require.NoError(t, err)
-	s := secrets("127.0.0.1", "8443", "example-app")
+	s := secrets("127.0.0.1", ":8443", "example-app")
 	testutil.AssertShapesNeverPrint(t, c, s...)
 	testutil.AssertShapesNeverPrint(t, skiptrace.New(c), s...)
 	other, err := batchdata.NewClient(plantedToken, batchdata.WithTimeout(time.Second))

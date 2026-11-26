@@ -86,6 +86,36 @@ func TestAssertRedacted(t *testing.T) {
 	}
 }
 
+func TestAssertRedactedRejectsAddressLikeSecrets(t *testing.T) {
+	// A func printed by %v inside a struct, then by %x, %X and %p, as fmt
+	// prints one in the shapes AssertShapesNeverPrint formats.
+	const addresses = "[{0 0 0 0 false 4333128864}] 102464ca0 102464CA0 0x102464ca0"
+
+	t.Run("rejected", func(t *testing.T) {
+		for _, s := range []string{"3128", "4333128864", "102464ca0", "102464CA0", "0x102464ca0", ""} {
+			t.Run(fmt.Sprintf("%q", s), func(t *testing.T) {
+				rec := &recorder{}
+				// sentinel leaks, but a bad secret stops the check before any search.
+				assert.False(t, testutil.AssertRedacted(rec, addresses+" "+sentinel, []string{sentinel, s}))
+				require.Len(t, rec.failures, 2, "a message and FailNow: %v", rec.failures)
+				assert.Contains(t, rec.failures[0], "secret could match a printed address")
+				assert.Contains(t, rec.failures[0], fmt.Sprintf("secret %q is made only of characters a printed address can hold", s))
+				assert.Equal(t, "FailNow", rec.failures[1])
+			})
+		}
+	})
+
+	t.Run("a port with its colon is accepted", func(t *testing.T) {
+		rec := &recorder{}
+		assert.True(t, testutil.AssertRedacted(rec, addresses, []string{":3128"}))
+		assert.Empty(t, rec.failures)
+
+		rec = &recorder{}
+		assert.False(t, testutil.AssertRedacted(rec, "dial tcp 192.0.2.10:3128", []string{":3128"}), "it still catches a real leak")
+		assert.NotEmpty(t, rec.failures)
+	})
+}
+
 func TestAssertNeverPrints(t *testing.T) {
 	t.Run("reflection reaches an unexported field", func(t *testing.T) {
 		rec := &recorder{}
