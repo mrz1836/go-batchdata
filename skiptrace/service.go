@@ -42,7 +42,8 @@ func New(client *batchdata.Client) *Service {
 // redirect, or splits the request. Every other error is a *batchdata.Error,
 // and the call may already have been processed and billed: do not resend
 // blindly. Records with OutcomeNoMatch, OutcomeFailed, OutcomeUnreported or
-// OutcomeUndecodable are part of a successful Result, never an error.
+// OutcomeUndecodable are part of a successful Result, never an error. Decode
+// decodes a kept response body the same way.
 func (s *Service) Trace(ctx context.Context, req Request) (*Result, error) {
 	if s == nil || s.send == nil {
 		return nil, &batchdata.ValidationError{
@@ -60,10 +61,7 @@ func (s *Service) Trace(ctx context.Context, req Request) (*Result, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	ids := make([]string, len(req.Items))
-	for i := range req.Items {
-		ids[i] = req.Items[i].RequestID
-	}
+	d := newDecoding(req.Items)
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, invalidRequest("Request", "cannot be encoded")
@@ -71,22 +69,8 @@ func (s *Service) Trace(ctx context.Context, req Request) (*Result, error) {
 	if len(body) > batchdata.MaxRequestBytes {
 		return nil, invalidRequest("Request", "encodes to more than MaxRequestBytes (1 MiB)")
 	}
-	var res *Result
-	err = s.send(ctx, call.Call[batchdata.Warning]{
-		Path: path,
-		Body: body,
-		Decode: func(result []byte, warnings []batchdata.Warning) error {
-			r, derr := decodeResult(result, ids)
-			if derr != nil {
-				return derr
-			}
-			r.Warnings = warnings
-			res = r
-			return nil
-		},
-	})
-	if err != nil {
+	if err = s.send(ctx, call.Call[batchdata.Warning]{Path: path, Body: body, Decode: d.decode}); err != nil {
 		return nil, err
 	}
-	return res, nil
+	return d.res, nil
 }

@@ -94,3 +94,25 @@ func ExampleResult_RecordsFor() {
 	// row-1 matched 1
 	// row-2 no_match 0
 }
+
+// A kept response decodes to the Result the call returned, without a call or
+// a token. Keep the body and the items' request IDs, in the order sent.
+func ExampleDecode() {
+	stored := []byte(`{"status":{"code":200},"result":{"data":[` +
+		`{"input":{"requestId":"row-2"},"persons":[],"meta":{"matched":false,"error":false}},` +
+		`{"input":{"requestId":"row-1"},"persons":[{"name":{"full":"Sample Person"}}],"meta":{"matched":true,"error":false}}]}}`)
+	req := skiptrace.Request{Items: []skiptrace.Item{{RequestID: "row-1"}, {RequestID: "row-2"}}}
+	res, err := skiptrace.Decode(stored, req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for i, item := range req.Items {
+		for _, rec := range res.RecordsFor(i) {
+			fmt.Println(item.RequestID, rec.Outcome, rec.Association)
+		}
+	}
+	// Output:
+	// row-1 matched request_id
+	// row-2 no_match request_id
+}

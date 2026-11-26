@@ -110,6 +110,8 @@ data and has to stay in control of every billable call.
 - **Nothing implicit.** No environment reads for the token, no injected option defaults, no globals.
 - **Private by construction.** Errors and printed clients never contain the token, URLs, bodies or
   personal data.
+- **Decode what you kept.** `skiptrace.Decode` turns the stored bytes of a response into the result the
+  call returned, with the same checks, and without a call or a token.
 - **Zero runtime dependencies** and bounded memory, time and response size.
 
 Version 1 covers **synchronous forward skip tracing** (`POST /api/v3/property/skip-trace`) only; see
@@ -444,7 +446,38 @@ To exercise the real SDK offline, serve a synthetic response from `httptest.NewT
 
 `skiptrace.Result` round-trips through `encoding/json` unchanged (`reflect.DeepEqual`), keeping nil and
 empty slices, and absent and `false` flags, apart. `encoding/json` decodes a JSON `null` and an absent
-field alike, which matches BatchData's meaning for every nullable field. The SDK keeps no raw body.
+field alike, which matches BatchData's meaning for every nullable field. The SDK keeps no raw body; to
+decode one you kept, see [Decoding a stored response](#decoding-a-stored-response).
+
+### Decoding a stored response
+
+If you keep the bytes of each response, for example to audit what a call returned or to run your own
+mapping again after fixing it, `skiptrace.Decode` decodes them with the code `Trace` uses and returns the
+same `Result`, or the same `*batchdata.Error`, that `Trace` returned for those bytes. It makes no call and
+needs no client or token.
+
+```go
+res, err := skiptrace.Decode(storedBody, skiptrace.Request{Items: []skiptrace.Item{
+	{RequestID: "row-1"}, {RequestID: "row-2"}, // the items' RequestIDs, in the order sent
+}})
+```
+
+| Keep | Why |
+|---|---|
+| The whole body of the HTTP 200 response, as the call read it | `Decode` checks it exactly as the call did. A call that got any other status never decoded its body, so keep none for it. |
+| Each item's `RequestID`, in the order the request sent them | They link records to items (`Record.Association`). `Decode` reads nothing else of the request and never validates it, so passing the whole request is fine too. A one-item request without an ID needs only `Request{Items: make([]skiptrace.Item, 1)}`. |
+
+Two things differ from the call: a rejection inside an HTTP 200 body carries no `Retry-After` hint, because
+the hint was a response header; and a body over 64 MiB (`batchdata.MaxResponseBytesLimit`, the most any
+call reads) fails as `KindResponseTooLarge`. Every other result and error is the call's. `Decode` never
+modifies the body, and the result shares no memory with it.
+
+If you keep only bodies up to some size, set the client to the same bound with
+`batchdata.WithMaxResponseBytes`, so that a call never decodes an answer you can't keep whole.
+
+A later version of the SDK may decode the same bytes differently if a decoding rule changes: pin the
+version whose results you need to reproduce. `batchdata.DecodeResponse` is the envelope check every
+service shares; use a service's own `Decode`.
 
 <br/>
 
@@ -477,6 +510,7 @@ body is always closed and never read more than one byte past the limit.
 | Items per request | 1 to 100 |
 | Encoded request | 1 MiB |
 | Response body | 8 MiB by default, up to 64 MiB |
+| A stored body passed to `skiptrace.Decode` | 64 MiB |
 | Rejection body read | 64 KiB, best-effort |
 | Response headers (SDK-built transport) | 64 KiB |
 | JSON objects and arrays in a 200 body | 100,000 |

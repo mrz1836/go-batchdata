@@ -16,6 +16,10 @@
 //	tracer := skiptrace.New(client)
 //	res, err := tracer.Trace(ctx, req)
 //
+// DecodeResponse decodes the kept body of an HTTP 200 response with the checks
+// a call applies, without a call; a service's own decoder, such as
+// skiptrace.Decode, is its typed form.
+//
 // The SDK makes at most one HTTP attempt per call. It never retries, follows
 // redirects, replays a request or reads the environment for credentials. Every
 // call may be billed, and a failed call may already have been processed.
