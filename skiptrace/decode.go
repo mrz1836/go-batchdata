@@ -5,12 +5,65 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/mrz1836/go-batchdata"
 	"github.com/mrz1836/go-batchdata/internal/jsonx"
 )
 
 // errMalformed reports a result object that is not the documented shape. The
 // root package replaces it with its own error, so its text never surfaces.
 var errMalformed = errors.New("skiptrace: malformed result")
+
+// Decode decodes body, the bytes of an HTTP 200 response to a skip-trace call
+// that the caller kept, exactly as Trace decodes the response it reads, and
+// returns the same Result or the same *batchdata.Error. It makes no call and
+// needs no client or token.
+//
+// req is the request the call sent. Decode reads only how many items it has
+// and each item's RequestID, in order: they link records to items (see
+// Record.Association). It never validates req, so a request that a later
+// version refuses still decodes, and a request with no items links no record.
+// Keep at least those IDs, in the order sent, with the body.
+//
+// Errors are those of batchdata.DecodeResponse, which also says what differs
+// from a call. Decode never modifies body, and the Result shares no memory
+// with it.
+func Decode(body []byte, req Request) (*Result, error) {
+	d := newDecoding(req.Items)
+	if err := batchdata.DecodeResponse(body, d.decode); err != nil {
+		return nil, err
+	}
+	return d.res, nil
+}
+
+// decoding is one decode of a skip-trace response: the request IDs that link
+// its records to items, snapshotted from the request, and the Result once it
+// is decoded. Trace and Decode both decode through one, so a kept body
+// decodes exactly as the call decoded it.
+type decoding struct {
+	ids []string
+	res *Result
+}
+
+// newDecoding snapshots each item's RequestID, in order.
+func newDecoding(items []Item) *decoding {
+	ids := make([]string, len(items))
+	for i := range items {
+		ids[i] = items[i].RequestID
+	}
+	return &decoding{ids: ids}
+}
+
+// decode decodes the envelope's result object and keeps the envelope's
+// warnings.
+func (d *decoding) decode(result []byte, warnings []batchdata.Warning) error {
+	r, err := decodeResult(result, d.ids)
+	if err != nil {
+		return err
+	}
+	r.Warnings = warnings
+	d.res = r
+	return nil
+}
 
 // wireResult is the response's result object.
 type wireResult struct {
@@ -31,7 +84,7 @@ type wireRecord struct {
 // options and meta, when present and not null, must have the documented types.
 // Each element of data is then decoded on its own, so one bad record never
 // fails the others, and linked to the request items by ids, the request IDs
-// snapshotted before the call.
+// snapshotted from the request.
 func decodeResult(raw []byte, ids []string) (*Result, error) {
 	var w wireResult
 	if err := json.Unmarshal(raw, &w); err != nil || !jsonx.IsArray(w.Data) {
